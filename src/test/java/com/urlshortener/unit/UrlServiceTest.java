@@ -10,10 +10,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 
@@ -27,12 +25,14 @@ class UrlServiceTest {
     @Mock
     private UrlRepository urlRepository;
 
-    @InjectMocks
+    @Mock
+    private com.urlshortener.repository.RedirectLogRepository redirectLogRepository;
+
     private UrlService urlService;
 
     @BeforeEach
     void setUp() {
-        urlService = new UrlService(urlRepository, 6, "http://localhost:8080/s");
+        urlService = new UrlService(urlRepository, redirectLogRepository, 6, "http://localhost:8080/s");
     }
 
     @Test

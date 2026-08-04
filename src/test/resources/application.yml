@@ -1,0 +1,50 @@
+spring:
+  application:
+    name: url-shortener-service
+  
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/url_shortener}
+      database: url_shortener
+
+  jackson:
+    default-property-inclusion: non_null
+    time-zone: UTC
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api/v1
+  compression:
+    enabled: true
+    min-response-size: 1024
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,info,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+
+logging:
+  level:
+    root: INFO
+    com.urlshortener: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+url:
+  shortener:
+    base-url: http://localhost:8080/s
+    short-code-length: 6
+    cache-ttl-minutes: 60
+    max-cache-size: 10000
+    redirect-timeout-seconds: 30
+
+
