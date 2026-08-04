@@ -1,0 +1,14 @@
+# Test Profile Configuration
+# Connects to local MongoDB instance instead of embedded
+
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/url_shortener_test
+      database: url_shortener_test
+
+logging:
+  level:
+    root: INFO
+    com.urlshortener: DEBUG
+    org.springframework.data.mongodb: DEBUG
