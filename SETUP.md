@@ -142,6 +142,74 @@ curl http://localhost:8080/api/v1/urls/health
 
 ---
 
+## 4a. Run the Agentic Orchestrator
+
+The orchestrator is part of the same Spring Boot app (no separate process) — once `mvn
+spring-boot:run` is up (step 3) and MongoDB is running (step 1), drive it via
+`/api/v1/orchestration/**`. See `AGENT_DESIGN.md` for how it works internally and
+`SCENARIOS.md` for full worked examples.
+
+**Start a run:**
+```bash
+curl -X POST http://localhost:8080/api/v1/orchestration/runs \
+  -H "Content-Type: application/json" \
+  -d '{"requirementText":"Build a URL shortener with core APIs, analytics, and reliability features.","scenarioType":"GREENFIELD"}'
+```
+Response includes `"id"` (the runId) and per-stage results; it stops at the first thing
+needing you (a `WAITING_APPROVAL` gate) or runs straight through to `COMPLETED`.
+
+**Check current state / audit trail:**
+```bash
+curl http://localhost:8080/api/v1/orchestration/runs/{runId}
+```
+
+**Approve or reject a pending gate** (e.g. `RELEASE_READINESS`, `DATA_MIGRATION_REVIEW`,
+or `IMPLEMENTATION` if a guardrail was tripped):
+```bash
+curl -X POST http://localhost:8080/api/v1/orchestration/runs/{runId}/stages/RELEASE_READINESS/approve \
+  -H "Content-Type: application/json" -d '{"approver":"you"}'
+
+curl -X POST http://localhost:8080/api/v1/orchestration/runs/{runId}/stages/RELEASE_READINESS/reject \
+  -H "Content-Type: application/json" -d '{"approver":"you","reason":"docs incomplete"}'
+```
+
+**Stop a run (safe-stop):**
+```bash
+curl -X POST http://localhost:8080/api/v1/orchestration/runs/{runId}/stop
+```
+
+**Aggregate reliability metrics:**
+```bash
+curl http://localhost:8080/api/v1/orchestration/metrics
+```
+
+**Try the other two scenario types:**
+```bash
+# Brownfield — triggers dynamic re-plan + DATA_MIGRATION_REVIEW gate
+curl -X POST http://localhost:8080/api/v1/orchestration/runs -H "Content-Type: application/json" \
+  -d '{"requirementText":"Add a new field to the schema to capture referer analytics on redirect","scenarioType":"BROWNFIELD"}'
+
+# Ambiguous — REQUIREMENTS stage records the resolved assumption
+curl -X POST http://localhost:8080/api/v1/orchestration/runs -H "Content-Type: application/json" \
+  -d '{"requirementText":"Add caching support to make it faster","scenarioType":"AMBIGUOUS"}'
+```
+
+**Force a simulated failure** (to see retry/fallback/rollback without flaky infra):
+```bash
+curl -X POST http://localhost:8080/api/v1/orchestration/runs -H "Content-Type: application/json" \
+  -d '{"requirementText":"Build a URL shortener","scenarioType":"GREENFIELD","simulatedFailures":{"UNIT_TESTING":2}}'
+```
+
+**Without curl:** every endpoint is also listed in Swagger UI (step 5 below) under the
+`orchestration-controller` tag — you can call them from the browser.
+
+**Run just the orchestrator tests (no MongoDB needed — they use mocks):**
+```bash
+mvn -q test "-Dtest=OrchestrationEngineTest,OrchestrationControllerIntegrationTest"
+```
+
+---
+
 ## 5. API Documentation (Swagger UI)
 
 - **Swagger UI**: http://localhost:8080/swagger-ui.html

@@ -7,6 +7,7 @@ URL shortener service built with Java/Spring Boot and Redis for high-performance
 ### Prerequisites
 - Java 17+
 - Maven 3.8+
+- Kafka (default: `localhost:9092`)
 - Redis running locally or accessible remotely
 - Docker (optional)
 
@@ -25,6 +26,7 @@ URL shortener service built with Java/Spring Boot and Redis for high-performance
    export REDIS_PORT=6379
    export SERVER_PORT=8080
    export BASE_URL=http://localhost:8080/s
+   export KAFKA_BOOTSTRAP_SERVERS=localhost:9092
    ```
 
 3. **Build and run:**
@@ -84,6 +86,12 @@ src/
 
 ## API Endpoints
 
+Redirect analytics are published to the `url-redirect-events` Kafka topic and persisted by
+the consumer. Set `REDIRECT_EVENTS_TOPIC` to override the topic. Events use a unique event ID
+as the MongoDB document ID so consumer redelivery overwrites the same record; Kafka uses the
+short code as the message key to preserve ordering for redirects to the same URL. Producer
+idempotence and acknowledgements are enabled.
+
 ### Shorten URL
 ```
 POST /api/v1/urls/shorten
@@ -110,6 +118,17 @@ GET /api/v1/urls/{shortCode}
 Response (200):
 https://example.com/very/long/url
 ```
+
+## Agentic Orchestration Engine
+
+Beyond the URL shortener API, this project includes a real agentic SDLC orchestration engine
+(`com.urlshortener.orchestration`) that drives a requirement through Requirements → Architecture →
+Implementation/Schema (parallel) → Unit/Integration Testing → Docs/Coverage (parallel) → Release,
+with human approval gates, bounded retries, fallback/rollback, security guardrails, dynamic
+re-planning, and an audit trail. See [ORCHESTRATION.md](ORCHESTRATION.md) for the full model and
+REST API (`/api/v1/orchestration/**`), [AGENT_DESIGN.md](AGENT_DESIGN.md) for architecture/sequence/
+state diagrams and an internals walkthrough of how the agent executes, and
+[SCENARIOS.md](SCENARIOS.md) for greenfield/brownfield/ambiguous walkthroughs.
 
 ## Development Guidelines
 

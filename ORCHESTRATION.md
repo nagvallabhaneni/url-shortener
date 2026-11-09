@@ -1,5 +1,44 @@
 # Agentic Orchestration Model
 
+## 0. Executable Orchestration Engine (Implemented)
+
+Everything described below was originally captured as narrative documentation. It is now
+**implemented as real, tested code** under `src/main/java/com/urlshortener/orchestration/`:
+
+| Concept | Class |
+|---|---|
+| Dependency graph (stages, deps, retry limits, approval/fallback flags) | `graph/DependencyGraph.java`, `graph/StageDefinition.java` |
+| Stage execution logic (requirements ambiguity detection, brownfield impact analysis, etc.) | `executor/*Executor.java` |
+| Stateful engine: parallel batches, sync points, retries, fallback, rollback, gates, re-planning | `engine/OrchestrationEngine.java` |
+| Security/compliance guardrails (blocks implementation on policy violations) | `policy/GuardrailPolicy.java` |
+| Persisted run state + audit trail | `model/WorkflowRun.java` (MongoDB collection `workflow_runs`) |
+| REST API to start runs, approve/reject gates, stop, and pull metrics | `controller/OrchestrationController.java` |
+
+### API quick reference
+
+```
+POST /api/v1/orchestration/runs                                 { requirementText, scenarioType, simulatedFailures? }
+GET  /api/v1/orchestration/runs/{runId}                         -> full WorkflowRun (stage results, audit trail, status)
+POST /api/v1/orchestration/runs/{runId}/stages/{stage}/approve   { approver }
+POST /api/v1/orchestration/runs/{runId}/stages/{stage}/reject    { approver, reason }
+POST /api/v1/orchestration/runs/{runId}/stop
+GET  /api/v1/orchestration/metrics                               -> aggregate success rate, retry/rollback/replan avgs, latency
+```
+
+`scenarioType` is one of `GREENFIELD`, `BROWNFIELD`, `AMBIGUOUS` (see `SCENARIOS.md` for full walkthroughs of all three).
+`simulatedFailures` (optional, e.g. `{"UNIT_TESTING": 2}`) forces a stage to fail its first N attempts, to
+exercise the bounded-retry/fallback/rollback paths deterministically in a demo without needing genuinely
+flaky infrastructure.
+
+Test coverage: `src/test/java/com/urlshortener/orchestration/OrchestrationEngineTest.java` (8 engine-level
+scenarios: parallel execution + release gate, dynamic re-plan, bounded retry recovery, retry exhaustion with
+and without fallback, upstream rollback, guardrail rejection, safe-stop) and
+`OrchestrationControllerIntegrationTest.java` (REST contract).
+
+The rest of this document is the original design rationale and decision log kept as historical context.
+
+---
+
 ## 1. What "Agentic" Means in This Project
 
 This project was built using an **agentic execution model**: an AI agent (GitHub Copilot CLI)

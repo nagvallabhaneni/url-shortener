@@ -3,9 +3,9 @@ package com.urlshortener.service;
 import com.urlshortener.dto.ShortenUrlRequest;
 import com.urlshortener.dto.ShortenUrlResponse;
 import com.urlshortener.exception.UrlException;
-import com.urlshortener.model.RedirectLog;
+import com.urlshortener.messaging.RedirectEvent;
+import com.urlshortener.messaging.RedirectEventPublisher;
 import com.urlshortener.model.UrlMapping;
-import com.urlshortener.repository.RedirectLogRepository;
 import com.urlshortener.repository.UrlRepository;
 import com.urlshortener.util.HashGenerator;
 import com.urlshortener.validator.UrlValidator;
@@ -14,22 +14,23 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 @Slf4j
 @Service
 public class UrlService {
     private final UrlRepository urlRepository;
-    private final RedirectLogRepository redirectLogRepository;
+    private final RedirectEventPublisher redirectEventPublisher;
     private final UrlValidator urlValidator;
     private final HashGenerator hashGenerator;
     private final String baseUrl;
 
     public UrlService(UrlRepository urlRepository,
-                     RedirectLogRepository redirectLogRepository,
+                     RedirectEventPublisher redirectEventPublisher,
                      @Value("${url.shortener.short-code-length}") int codeLength,
                      @Value("${url.shortener.base-url}") String baseUrl) {
         this.urlRepository = urlRepository;
-        this.redirectLogRepository = redirectLogRepository;
+        this.redirectEventPublisher = redirectEventPublisher;
         this.urlValidator = new UrlValidator();
         this.hashGenerator = new HashGenerator(codeLength);
         this.baseUrl = baseUrl;
@@ -125,22 +126,21 @@ public class UrlService {
     private void logRedirect(String shortCode, String userId, String ipAddress, String userAgent, 
                            String referer, long responseTimeMs) {
         try {
-            RedirectLog redirectLog = RedirectLog.builder()
-                .shortCode(shortCode)
-                .userId(userId)
-                .ipAddress(ipAddress)
-                .userAgent(userAgent)
-                .referer(referer)
-                .redirectedAt(LocalDateTime.now())
-                .responseTimeMs(responseTimeMs)
-                .build();
+            RedirectEvent event = new RedirectEvent(
+                UUID.randomUUID().toString(),
+                shortCode,
+                userId,
+                ipAddress,
+                userAgent,
+                referer,
+                LocalDateTime.now(),
+                responseTimeMs
+            );
 
-            redirectLogRepository.save(redirectLog);
-            log.info("Redirect log saved for short code: {}", shortCode);
-        } catch (Exception e) {
-            log.error("Failed to log redirect for short code: {}", shortCode, e);
-            // Don't throw exception - redirect should succeed even if logging fails
+            redirectEventPublisher.publish(event);
+            log.info("Redirect event published for short code: {}", shortCode);
+        } catch (RuntimeException e) {
+            log.error("Failed to publish redirect event for short code: {}", shortCode, e);
         }
     }
 }
-

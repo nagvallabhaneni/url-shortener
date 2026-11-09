@@ -1,5 +1,27 @@
 # Three Engineering Scenarios
 
+Each scenario below is also runnable end-to-end against the real orchestration engine
+(see ORCHESTRATION.md §0). Example calls:
+
+```bash
+# Scenario 1 (greenfield)
+curl -X POST localhost:8080/api/v1/orchestration/runs -H "Content-Type: application/json" \
+  -d '{"requirementText":"Build a URL shortener service with core APIs, analytics, and reliability features.","scenarioType":"GREENFIELD"}'
+
+# Scenario 2 (brownfield, schema-impacting -> triggers dynamic re-plan / DATA_MIGRATION_REVIEW gate)
+curl -X POST localhost:8080/api/v1/orchestration/runs -H "Content-Type: application/json" \
+  -d '{"requirementText":"Add a new field to the schema to capture referer analytics on redirect","scenarioType":"BROWNFIELD"}'
+
+# Scenario 3 (ambiguous -> REQUIREMENTS stage records the resolved assumption in its artifacts)
+curl -X POST localhost:8080/api/v1/orchestration/runs -H "Content-Type: application/json" \
+  -d '{"requirementText":"Add caching support to make it faster","scenarioType":"AMBIGUOUS"}'
+
+# Inspect state/audit trail, then approve a pending gate:
+curl localhost:8080/api/v1/orchestration/runs/{runId}
+curl -X POST localhost:8080/api/v1/orchestration/runs/{runId}/stages/RELEASE_READINESS/approve \
+  -H "Content-Type: application/json" -d '{"approver":"reviewer1"}'
+```
+
 ---
 
 ## Scenario 1 — Greenfield: Build URL Shortener From Scratch

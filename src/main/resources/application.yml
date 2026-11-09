@@ -7,6 +7,29 @@ spring:
       uri: ${MONGODB_URI:mongodb://localhost:27017/url_shortener}
       database: url_shortener
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 2147483647
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+    consumer:
+      group-id: url-shortener-analytics
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.urlshortener.messaging
+        spring.json.value.default.type: com.urlshortener.messaging.RedirectEvent
+    listener:
+      ack-mode: record
+      concurrency: 1
+
   jackson:
     default-property-inclusion: non_null
     time-zone: UTC
@@ -60,3 +83,7 @@ url:
     cache-ttl-minutes: 60
     max-cache-size: 10000
     redirect-timeout-seconds: 30
+
+kafka:
+  topics:
+    redirect-events: ${REDIRECT_EVENTS_TOPIC:url-redirect-events}

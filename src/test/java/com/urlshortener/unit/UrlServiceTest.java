@@ -3,6 +3,7 @@ package com.urlshortener.unit;
 import com.urlshortener.dto.ShortenUrlRequest;
 import com.urlshortener.dto.ShortenUrlResponse;
 import com.urlshortener.exception.UrlException;
+import com.urlshortener.messaging.RedirectEventPublisher;
 import com.urlshortener.model.UrlMapping;
 import com.urlshortener.repository.UrlRepository;
 import com.urlshortener.service.UrlService;
@@ -26,13 +27,13 @@ class UrlServiceTest {
     private UrlRepository urlRepository;
 
     @Mock
-    private com.urlshortener.repository.RedirectLogRepository redirectLogRepository;
+    private RedirectEventPublisher redirectEventPublisher;
 
     private UrlService urlService;
 
     @BeforeEach
     void setUp() {
-        urlService = new UrlService(urlRepository, redirectLogRepository, 6, "http://localhost:8080/s");
+        urlService = new UrlService(urlRepository, redirectEventPublisher, 6, "http://localhost:8080/s");
     }
 
     @Test

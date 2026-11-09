@@ -7,6 +7,11 @@ spring:
       uri: ${MONGODB_URI:mongodb://localhost:27017/url_shortener}
       database: url_shortener
 
+  kafka:
+    bootstrap-servers: localhost:9092
+    listener:
+      auto-startup: false
+
   jackson:
     default-property-inclusion: non_null
     time-zone: UTC
@@ -47,4 +52,6 @@ url:
     max-cache-size: 10000
     redirect-timeout-seconds: 30
 
-
+kafka:
+  topics:
+    redirect-events: url-redirect-events

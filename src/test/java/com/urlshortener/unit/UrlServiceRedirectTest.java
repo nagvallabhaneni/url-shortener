@@ -3,8 +3,9 @@ package com.urlshortener.unit;
 import com.urlshortener.dto.ShortenUrlRequest;
 import com.urlshortener.dto.ShortenUrlResponse;
 import com.urlshortener.exception.UrlException;
+import com.urlshortener.messaging.RedirectEvent;
+import com.urlshortener.messaging.RedirectEventPublisher;
 import com.urlshortener.model.UrlMapping;
-import com.urlshortener.repository.RedirectLogRepository;
 import com.urlshortener.repository.UrlRepository;
 import com.urlshortener.service.UrlService;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,13 +30,13 @@ class UrlServiceRedirectTest {
     private UrlRepository urlRepository;
 
     @Mock
-    private RedirectLogRepository redirectLogRepository;
+    private RedirectEventPublisher redirectEventPublisher;
 
     private UrlService urlService;
 
     @BeforeEach
     void setUp() {
-        urlService = new UrlService(urlRepository, redirectLogRepository, 6, "http://localhost:8080/s");
+        urlService = new UrlService(urlRepository, redirectEventPublisher, 6, "http://localhost:8080/s");
     }
 
     @Test
@@ -62,7 +63,7 @@ class UrlServiceRedirectTest {
         assertEquals(originalUrl, result);
         verify(urlRepository, times(1)).findById(shortCode);
         verify(urlRepository, times(1)).save(any(UrlMapping.class));
-        verify(redirectLogRepository, times(1)).save(any());
+        verify(redirectEventPublisher, times(1)).publish(any(RedirectEvent.class));
 
         // Verify access count was incremented
         ArgumentCaptor<UrlMapping> captor = ArgumentCaptor.forClass(UrlMapping.class);
@@ -123,7 +124,7 @@ class UrlServiceRedirectTest {
 
         when(urlRepository.findById(shortCode)).thenReturn(Optional.of(urlMapping));
         when(urlRepository.save(any(UrlMapping.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        doThrow(new RuntimeException("Analytics error")).when(redirectLogRepository).save(any());
+        doThrow(new RuntimeException("Analytics error")).when(redirectEventPublisher).publish(any());
 
         // Act & Assert - Should not throw exception
         assertDoesNotThrow(() -> 
@@ -131,6 +132,32 @@ class UrlServiceRedirectTest {
 
         // Verify URL was still saved
         verify(urlRepository, times(1)).save(any(UrlMapping.class));
+    }
+
+    @Test
+    @DisplayName("Should publish redirect event with unique ID and analytics details")
+    void shouldPublishRedirectEventWithUniqueIdAndAnalyticsDetails() {
+        UrlMapping urlMapping = UrlMapping.builder()
+            .shortCode("abc123")
+            .originalUrl("https://example.com")
+            .userId("user123")
+            .createdAt(LocalDateTime.now())
+            .accessCount(0)
+            .build();
+        when(urlRepository.findById("abc123")).thenReturn(Optional.of(urlMapping));
+        when(urlRepository.save(any(UrlMapping.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        urlService.handleRedirect("abc123", "192.168.1.1", "Mozilla", "Direct");
+
+        ArgumentCaptor<RedirectEvent> eventCaptor = ArgumentCaptor.forClass(RedirectEvent.class);
+        verify(redirectEventPublisher).publish(eventCaptor.capture());
+        RedirectEvent event = eventCaptor.getValue();
+        assertNotNull(event.eventId());
+        assertEquals("abc123", event.shortCode());
+        assertEquals("192.168.1.1", event.ipAddress());
+        assertEquals("Mozilla", event.userAgent());
+        assertEquals("Direct", event.referer());
+        assertNotNull(event.redirectedAt());
     }
 
     @Test
